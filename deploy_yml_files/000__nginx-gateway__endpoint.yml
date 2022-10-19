@@ -1,0 +1,22 @@
+
+apiVersion : "v1"
+kind: Service
+metadata:
+  name: apigateway-nginx
+  labels:
+    type: apigateway
+    destination: external
+spec:
+  type: LoadBalancer
+  selector:
+    type: apigateway-nginx
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: http
+      port: 80
+      targetPort: 80
+  loadBalancerIP: 4.228.102.59
+  loadBalancerSourceRanges:
+      - [firewall ip ranges]

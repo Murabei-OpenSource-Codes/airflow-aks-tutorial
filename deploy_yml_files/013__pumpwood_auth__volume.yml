@@ -1,0 +1,33 @@
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pumpwood--postgres--auth
+  labels:
+    usage: pumpwood--postgres--auth
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: managed-csi
+  csi:
+    driver: disk.csi.azure.com
+    readOnly: false
+    volumeHandle: /subscriptions/eec443ab-c101-4d83-a612-ec3f87c7fb59/resourceGroups/MC_AirflowK8s_AirflowK8sTest_brazilsouth/providers/Microsoft.Compute/disks/pumpwood--postgres--auth
+    volumeAttributes:
+      fsType: ext4
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+    name: postgres-pumpwood-auth
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 20Gi
+  volumeName: pumpwood--postgres--auth

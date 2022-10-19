@@ -1,0 +1,163 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pumpwood-auth-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: app
+      endpoint: pumpwood-auth-app
+      function: auth
+  template:
+    metadata:
+      labels:
+        type: app
+        endpoint: pumpwood-auth-app
+        function: auth
+    spec:
+      imagePullSecrets:
+        - name: dockercfg
+      volumes:
+      - name: secrets
+        secret:
+          secretName: pumpwood-auth
+      volumes:
+      - name: gcp--storage-key
+        secret:
+          secretName: gcp--storage-key
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: function
+                operator: NotIn
+                values:
+                - system
+      containers:
+      - name: pumpwood-auth-app
+        image: airflowk8stest.azurecr.io/pumpwood/pumpwood-auth-app:0.66
+        resources:
+          requests:
+            memory: "60Gi"
+            cpu:  "12000m"
+          limits:
+            memory: "20Mi"
+            cpu:  "1m"
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "1m"
+        volumeMounts:
+          - name: gcp--storage-key
+            readOnly: true
+            mountPath: /etc/secrets
+        ports:
+        - containerPort: 5000
+        readinessProbe:
+          httpGet:
+            path: /health-check/pumpwood-auth-app/
+            port: 5000
+        env:
+        - name: DEBUG
+          value: "FALSE"
+
+        # HASH_SALT
+        - name: HASH_SALT
+          valueFrom:
+            secretKeyRef:
+              name: hash-salt
+              key: hash_salt
+
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: secret_key
+
+        # Database
+        - name: DB_USERNAME
+          value: pumpwood
+        - name: DB_HOST
+          value: postgres-pumpwood-auth
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_DATABASE
+          value: pumpwood
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: db_password
+
+        # Microservice
+        - name: MICROSERVICE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: microservice_password
+
+        # Email
+        - name: EMAIL_HOST_USER
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: email_host_user
+        - name: EMAIL_HOST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: email_host_password
+
+        ###########
+        # STORAGE #
+        - name: STORAGE_BUCKET_NAME
+          value: test-pumpwood
+        - name: STORAGE_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: storage
+              key: storage_type
+
+        # GCP
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/etc/secrets/key-storage.json"
+
+        # AZURE
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+              secretKeyRef:
+                name: azure--storage-key
+                key: azure_storage_connection_string
+
+        # AWS
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+              secretKeyRef:
+                name: aws--storage-key
+                key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+              secretKeyRef:
+                name: aws--storage-key
+                key: aws_secret_access_key
+---
+apiVersion : "v1"
+kind: Service
+metadata:
+  name: pumpwood-auth-app
+  labels:
+    type: app
+    endpoint: pumpwood-auth-app
+    function: auth
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+  selector:
+    type: app
+    endpoint: pumpwood-auth-app
+    function: auth

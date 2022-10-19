@@ -1,0 +1,7 @@
+outputs/*
+secrets/*
+cert/*
+create_docker_secret.bash
+!secrets/.gitkeep
+!secrets/.gitignore
+!secrets/secrets.template
