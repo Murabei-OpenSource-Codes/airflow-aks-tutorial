@@ -48,7 +48,7 @@ deploy = DeployPumpWood(
 
 deploy.add_microservice(
     ApiGateway(
-        gateway_public_ip="4.228.102.59",
+        gateway_public_ip="4.228.204.59",
         email_contact="a.baceti@murabei.com",
         version="0.32",
         health_check_url="health-check/pumpwood-auth-app/",
