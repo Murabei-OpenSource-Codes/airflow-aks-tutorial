@@ -1,0 +1,94 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-pumpwood-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: db
+      endpoint: pumpwood-auth-app
+      function: auth
+  template:
+    metadata:
+      labels:
+        type: db
+        endpoint: pumpwood-auth-app
+        function: auth
+    spec:
+      volumes:
+      - name: postgres-pumpwood-auth-data
+        persistentVolumeClaim:
+          claimName: postgres-pumpwood-auth
+      - name: secrets
+        secret:
+          secretName: pumpwood-auth
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: function
+                operator: NotIn
+                values:
+                - system
+      containers:
+      - name: postgres-pumpwood-auth
+        image: timescale/timescaledb-postgis:2.3.0-pg13
+        args: [
+            "-c", "max_connections=1000",
+            "-c", "work_mem=50MB",
+            "-c", "shared_buffers=1GB",
+            "-c", "max_locks_per_transaction=500",
+            "-c", "max_wal_size=10GB",
+            "-c", "min_wal_size=80MB"]
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu:  "1m"
+          limits:
+            memory: "4Gi"
+            cpu:  "2000m"
+        env:
+        - name: POSTGRES_USER
+          value: pumpwood
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pumpwood-auth
+              key: db_password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-pumpwood-auth-data
+          mountPath: /var/lib/postgresql/data/
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: dshm
+          mountPath: /dev/shm
+        ports:
+        - containerPort: 5432
+---
+apiVersion : "v1"
+kind: Service
+metadata:
+  name: postgres-pumpwood-auth
+  labels:
+    type: db
+    endpoint: pumpwood-auth-app
+    function: auth
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    type: db
+    endpoint: pumpwood-auth-app
+    function: auth

@@ -1,0 +1,9 @@
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws--storage-key
+type: Opaque
+data:
+  aws_access_key_id: {aws--storage--key_id}
+  aws_secret_access_key: {aws--storage--access_key}

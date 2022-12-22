@@ -1,0 +1,92 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-simple-airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: db
+      endpoint: simple-airflow-app
+  template:
+    metadata:
+      labels:
+        type: db
+        endpoint: simple-airflow-app
+    spec:
+      volumes:
+      - name: simple-airflow-data
+        persistentVolumeClaim:
+          claimName: postgres-simple-airflow
+      - name: secrets
+        secret:
+          secretName: simple-airflow
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: function
+                operator: NotIn
+                values:
+                - system
+      containers:
+      - name: postgres-simple-airflow
+        image: timescale/timescaledb-postgis:2.3.0-pg13
+        args: [
+            "-c", "max_connections=1000",
+            "-c", "work_mem=50MB",
+            "-c", "shared_buffers=1GB",
+            "-c", "max_locks_per_transaction=500",
+            "-c", "max_wal_size=10GB",
+            "-c", "min_wal_size=80MB"]
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "1m"
+          limits:
+            cpu: "3"
+        env:
+        - name: POSTGRES_USER
+          value: pumpwood
+        - name: POSTGRES_DB
+          value: pumpwood
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: simple-airflow
+              key: db_password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+
+        volumeMounts:
+        - name: simple-airflow-data
+          mountPath: /var/lib/postgresql/data/
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: dshm
+          mountPath: /dev/shm
+
+        ports:
+        - containerPort: 5432
+---
+apiVersion : "v1"
+kind: Service
+metadata:
+  name: postgres-simple-airflow
+  labels:
+    type: db
+    endpoint: simple-airflow-app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    type: db
+    endpoint: simple-airflow-app
